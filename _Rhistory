@@ -1,0 +1,512 @@
+if(is.null(key.lab.cex)){
+key.lab.cex <- lab.cex
+if(key.adj[1]==1){
+while(key.lab.x - strwidth(colnames(input.df)[i],cex=key.lab.cex)<0){
+key.lab.cex <- key.lab.cex - 0.1
+}
+} else {
+while(key.lab.x + strwidth(colnames(input.df)[i],cex=key.lab.cex)>5){
+key.lab.cex <- key.lab.cex - 0.1
+}
+}
+}
+text(x=key.lab.x,y=key.lab.y,adj=key.adj,cex=key.lab.cex,
+labels=switch(colnames(input.df)[i],
+Feeding_Behavior_DC = "Feeding Behavior (Rodent)",
+Feeding_Behavior_SS = "Feeding Behavior (C. elegans)",
+Adipocyte_Differentiation = "Adipocyte Differentiation",
+Islet_Cell_MW = "Islet Cell (MW)",
+Islet_Cell_AH = "Islet Cell (AH)",
+Insulin_Sensitivity = "Insulin Sensitivity",
+colnames(input.df)[i]))
+}
+# Closes graphics devices
+graphics.off()
+}
+# Runs the function
+toxpi_hc(tox_data)
+load("C:/Users/SQL-server/Documents/R/win-library/3.4/Dream.TK/data/chemical.data.RData")
+load("C:/Users/SQL-server/Documents/R/win-library/3.4/Dream.TK/data/ac50.data.RData")
+load("C:/Users/SQL-server/Documents/R/win-library/3.4/Dream.TK/data/assay.data.RData")
+chem_data_t = data.frame(chem=NA)
+#casn_list = chemical.data$casn[1:100]
+casn_list = sample(chemical.data$casn,80)
+chemdata2 = ac50.data[ac50.data$casn %in% casn_list,]
+chemdata2 = merge(chemdata2,assay.data)[c(1,2,3,4,5,12,13)]
+for (i in !is.na(unique(chemdata2$biological_process_target))){
+chem_data_t = data.frame(chem_data_t, i=NA)
+}
+colnames(chem_data_t) <- c("casn",unique(chemdata2$biological_process_target))
+chem_data_t = chem_data_t[!is.na(names(chem_data_t))]
+chem_data_t = chem_data_t[,-match("NA",names(chem_data_t))]
+chem_data_t = chem_data_t[,-match("casn",names(chem_data_t))]
+for (i in 1L:length(casn_list)){
+for (j in 1L:length(colnames(chem_data_t))){
+chem_data_t[i,j] = length(chemdata2$biological_process_target[chemdata2$biological_process_target==colnames(chem_data_t)[j] & chemdata2$casn==casn_list[i]])
+}
+}
+chemscale <- apply(chem_data_t,1,function(x) (x-min(x,na.rm=T))/diff(range(x,na.rm=T)))
+colnames(chemscale) <- casn_list
+angles <- seq.int(0,2*pi,2*pi/(ncol(chem_data_t)))
+target_coord = data.frame(x=rep(NA,ncol(chem_data_t)),y=rep(NA,ncol(chem_data_t)),target=rep(NA,ncol(chem_data_t)))
+for (i in 1L:length(colnames(chem_data_t))){
+target_coord$x[i] = cos(angles[i])
+target_coord$y[i] = sin(angles[i])
+target_coord$target[i] = colnames(chem_data_t)[i]
+}
+plot(target_coord$x,target_coord$y,col="red",xlim=c(-1.75,1.75),ylim=c(-1.5,1.5),axes=TRUE,xlab="",ylab="")
+text(target_coord$x,target_coord$y,target_coord$target,cex=0.7,pos=1,col="red")
+for (i in 1L:length(colnames(chemscale))){
+chem_coord_i = target_coord[,1:2]*as.vector(chemscale[,i])
+par(new=TRUE)
+plot(sum(chem_coord_i$x),sum(chem_coord_i$y),xlim=c(-1.75,1.75),ylim=c(-1.5,1.5),xlab="",ylab="")
+#text(sum(chem_coord_i$x),sum(chem_coord_i$y),colnames(chemscale)[i],cex=0.5,pos=1)
+}
+chemical_table_extend <- function(casn_list=NULL){
+# Loads the required RData tables
+load("C:\\Users\\SQL-server\\Documents\\R\\win-library\\3.4\\Dream.TK\\data\\ac50.data.RData")
+load("C:\\Users\\SQL-server\\Documents\\R\\win-library\\3.4\\Dream.TK\\data\\assay.data.RData")
+load("C:\\Users\\SQL-server\\Documents\\R\\win-library\\3.4\\Dream.TK\\data\\chemical.data.RData")
+# Returns a random list of CAS Numbers if a list is not supplied
+if (is.null(casn_list)){
+casn_list = icllist$casn
+}
+# Retrieves chemical data for relevant CAS numbers
+chem_data = chemical.data[chemical.data$casn %in% casn_list,]
+### - FINDS MEDIAN VALUES FOR CHEMICALS AND ADDS NEW COLUMN - ###
+# Extracts median values for chemicals
+for (i in casn_list) {
+# Retrieves chemical data for a single chemical
+i_data = ac50.data[ac50.data$casn==i,]
+# Calculates median values for top asymptote and Ac50
+chem_data$median_top_asymptote[chem_data$casn==i] <- median(i_data$ac_top)
+chem_data$median_ac50[chem_data$casn==i] <- median_ac50 <- median(i_data$ac50)
+# Finds the AEID associated to the median Ac50
+target_aeid = i_data$aeid[which.min(abs(i_data$ac50 - median_ac50))]
+# Finds the targets of the associated AEID
+chem_data$median_target_family_from_ac50[chem_data$casn==i] <- assay.data$intended_target_family[assay.data$aeid==target_aeid]
+chem_data$median_biological_target_from_ac50[chem_data$casn==i] <- assay.data$biological_process_target[assay.data$aeid==target_aeid]
+}
+# Sets categorical variables to factors
+chem_data$median_biological_target_from_ac50 = as.factor(chem_data$median_biological_target_from_ac50)
+chem_data$median_target_family_from_ac50 = as.factor(chem_data$median_target_family_from_ac50)
+### - CONTINUE - ###
+# Returns retrieved the data
+return(chem_data)
+}
+load("C:/Users/SQL-server/Documents/Burton/Datas/icl_clint.RData")
+chem_data=chemical_table_extend(casn_list=icl$casn)
+View(chem_data)
+hist(chem_data$median_ac50)
+table(chem_data$median_ac50)
+hist(chem_data$median_ac50, title="Histogram of Median Ac50")
+hist(chem_data$median_ac50, main ="Histogram of Median Ac50")
+# Load the required RData tables
+load("C:/Users/SQL-server/Documents/R/win-library/3.4/Dream.TK/data/ac50.data.RData")
+load("C:/Users/SQL-server/Documents/R/win-library/3.4/Dream.TK/data/assay.data.RData")
+load("C:/Users/SQL-server/Documents/R/win-library/3.4/Dream.TK/data/chemical.data.RData")
+# Create an empty data frame to be populated
+transposed_chem_data = data.frame(chem=NA)
+# Retrieves a random list of chemicals
+# Should be changed to whatever list of chemicals you wish to analyze
+casn_list = icl$casn
+# Retrieves Ac50 data on chemicals in CASN list
+chemdata = ac50.data[ac50.data$casn %in% casn_list,]
+# Merges Ac50 data and assay data, retaining set columns
+chemdata = merge(chemdata,assay.data)[c("aeid","casn","ac50","ac_top","ac_cutoff","biological_process_target","intended_target_family")]
+var_of_interest = biological_process_target
+var_of_interest = paste0("chem_data$","biological_process_target")
+var_of_interest
+!is.na(unique(var_of_interest))
+# Creates a column for each biological process target
+for (i in !is.na(unique(var_of_interest))){
+transposed_chem_data = data.frame(transposed_chem_data, i=NA)
+}
+# Sets the column names to be the possible biological targets
+colnames(transposed_chem_data) <- c("casn",unique(var_of_interest))
+View(transposed_chem_data)
+# Removes empty columns, NA columns, and the CASN column
+transposed_chem_data = transposed_chem_data[!is.na(names(transposed_chem_data))]
+transposed_chem_data = transposed_chem_data[,-match("NA",names(transposed_chem_data))]
+transposed_chem_data = transposed_chem_data[,-match("casn",names(transposed_chem_data))]
+# Merges Ac50 data and assay data, retaining set columns
+chemdata = merge(chemdata,assay.data)[c("aeid","casn","ac50","ac_top","ac_cutoff","biological_process_target","intended_target_family")]
+var_of_interest = paste0("chem_data$","biological_process_target")
+# Creates a column for each biological process target
+for (i in !is.na(unique(var_of_interest))){
+transposed_chem_data = data.frame(transposed_chem_data, i=NA)
+}
+# Sets the column names to be the possible biological targets
+colnames(transposed_chem_data) <- c("casn",unique(var_of_interest))
+View(transposed_chem_data)
+unique(var_of_interest)
+# Merges Ac50 data and assay data, retaining set columns
+chemdata = merge(chemdata,assay.data)[c("aeid","casn","ac50","ac_top","ac_cutoff","biological_process_target","intended_target_family")]
+# Creates a column for each biological process target
+for (i in !is.na(unique(chemdata$intended_target_family))){
+transposed_chem_data = data.frame(transposed_chem_data, i=NA)
+}
+# Sets the column names to be the possible biological targets
+colnames(transposed_chem_data) <- c("casn",unique(chemdata$intended_target_family))
+# Removes empty columns, NA columns, and the CASN column
+transposed_chem_data = transposed_chem_data[!is.na(names(transposed_chem_data))]
+transposed_chem_data = transposed_chem_data[,-match("NA",names(transposed_chem_data))]
+transposed_chem_data = transposed_chem_data[,-match("casn",names(transposed_chem_data))]
+# Populates the rows of the transposed chemical data table
+for (i in 1L:length(casn_list)){
+for (j in 1L:length(colnames(transposed_chem_data))){
+transposed_chem_data[i,j] = length(chemdata$intended_target_family[chemdata$intended_target_family==colnames(transposed_chem_data)[j] & chemdata$casn==casn_list[i]])
+}
+}
+# Normalize the data
+tox_data <- apply(transposed_chem_data,1,function(x) (x-min(x,na.rm=T))/diff(range(x,na.rm=T)))
+colnames(tox_data) <- casn_list
+toxpi_hc_target <- function(tox_data,n=NULL,plot.zeros=TRUE,shift=TRUE,plot.chem=NULL,refchem=NULL,label.plot.chem=TRUE,weight=NULL,lab.offset=1,border=0,key.slice=1.8,key.lab.cex=NULL,lab.cex=1,title="",title.cex=5,rank.graph.cex=0.1) {
+# n=NULL
+# plot.zeros=TRUE
+# shift=TRUE
+# plot.chem=NULL
+# refchem=NULL
+# label.plot.chem=TRUE
+# weight=NULL
+# lab.offset=1
+# border=0
+# key.slice=1.8
+# key.lab.cex=NULL
+# lab.cex=1
+# title=""
+# title.cex=5
+# rank.graph.cex=0.1
+# Set graphics parameters so they can be changed later
+op <- par(no.readonly = TRUE)
+# Ensures all graphics devices are off
+graphics.off()
+# Sets the output directory
+### - CHANGE TO DESIRED OUTPUT DIRECTORY - ###
+out.dir <- "C:/Users/SQL-server/Documents/Burton/Out"
+# Tranposes input data
+tox_data=t(tox_data)
+# Transforms input data into a matrix
+tox_data <- data.frame(tox_data)
+input.df <- as.matrix(tox_data)
+input.df <- apply(input.df,2,as.numeric)
+# Assigns default filename
+file.name <- paste("toxpi_target_fig", format(Sys.Date(),"_%y%m%d"),".pdf",sep="")
+count <- 1
+while(file.name %in% dir(out.dir)){
+file.name <- paste("toxpi_target_fig",format(Sys.Date(),"_%y%m%d"),"_",sprintf("%02d",count),".pdf",sep="")
+count <- count+1
+}
+# Assigns colours for slices
+color <- colorRampPalette(c("#E41A1C","#377EB8","#4DAF4A","#984EA3","#FF7F00","#FFFF33"))(ncol(input.df))
+# Scales the data
+z <- tox_data
+# Replaces NA's with zeros
+z[is.na(z)] <- 0
+# Assignes column names
+colnames(z) <- rownames(transposed_chem_data)[1L:ncol(z)]
+# Defines starting angles for slices
+angles <- seq.int(0,2*pi,2*pi/ncol(input.df))
+# Calculates ToxPI score and stores in score vector
+score <- rep(0,nrow(input.df))
+for(i in 1L:nrow(input.df)){
+j.score <- as.vector(0)
+for(j in 1L:ncol(input.df)){
+j.score <- c(j.score,median(chemdata$ac50[chemdata$casn==rownames(z)[i] & chemdata$biological_process_target==colnames(z)[j]]))
+}
+score[i] <- sum(j.score,na.rm=TRUE)
+if(!exists("slice.score")){
+slice.score <- j.score
+} else {
+slice.score <- rbind(slice.score,j.score)
+}
+}
+# Attaches score vector to z
+z <- cbind(z,score)
+# Sorts the chemicals by score
+z <- data.frame(z,casn=rownames(tox_data)[1:nrow(z)])
+rownames(z) <- rownames(tox_data)[1:nrow(z)]
+z <- z[order(score,decreasing=T),]
+# Sets the number of plots required
+if(is.null(n)){
+if(plot.zeros){
+n <- nrow(input.df)
+} else {
+n <- length(which(z$score>0))
+}
+} else {
+n <- length(plot.chem)
+}
+if(n > nrow(input.df)){
+n <- nrow(input.df)
+}
+# Defines the plot, refchem, and refchem.col columns
+z <- data.frame(z, plot=rep(FALSE,nrow(z)),refchem=rep(FALSE,nrow(z)),refchem.col=rep("Black",nrow(z)))
+if(is.null(plot.chem)){
+if(plot.zeros){
+z$plot[1:n] <- TRUE
+} else {
+z$plot[which(z$score>0)][1:n] <- TRUE
+}
+} else {
+z$plot <- z$casn %in% plot.chem
+if(!plot.zeros){
+n <- n - length(which(z$score==0 & z$plot==TRUE))
+z$plot[which(z$score==0 & z$plot==TRUE)] <- FALSE
+}
+}
+if(label.plot.chem){
+z$refchem <- z$casn %in% refchem | z$casn %in% plot.chem
+} else {
+z$refchem <- z$casn %in% refchem
+}
+if(length(which(z$refchem))==0){
+refchem <- NULL
+}
+# Defines the refchem.col column in z
+if(length(which(z$refchem))>0){
+z$refchem.col <- as.character(z$refchem.col)
+refchem.col.vec <- match(refchem,z$casn)
+refchem.rm <- which(is.na(refchem.col.vec))
+if(lenght(refchem.rm)>0){
+refchem.col <- refchem.col[-refchem.rm]
+refchem.col.vec <- refchem.col.vec[-refchem.rm]
+}
+if(!is.null(refchem.col)){
+z$refchem.col[refchem.col.vec] <- refchem.col
+}
+}
+# Keeps only those entries which are to be plotted
+zp <- z[which(z$plot==TRUE),]
+# Sets the dimensions for the plots
+xplots <- ceiling(sqrt(n))+1
+yplots <- floor(sqrt(n))
+# If the number of excess plots is greater than the number of columns, we want to remove a row of plots
+if((xplots*yplots - n)>xplots){
+yplots = yplots-1
+}
+# Sets the dimensions of the plots
+width <- c(0,xplots*3+1)
+height <- c(0,yplots*3+1)
+# Create pdf to save the plot into.
+pdf(file=file.path(out.dir,file.name),width=width[2],height=height[2]+8,pointsize=18)
+# Creating vectors for ToxPI centre coordinates
+x0cord <- rep(seq(from=2,to=width[2]-2,by=3),yplots)
+y0cord <- rep(seq(from=height[2]-2,to=2,by=-3),rep(xplots,yplots))
+# Shifts down every other column
+centers <- cbind(x0cord,y0cord)
+if(shift){
+for(i in 1:length(centers[,-1])){
+if(!centers[i,1]%%2==0){
+centers[i,2] <- centers[i,2]-0.5
+}
+}
+# Restore ycord with shifted points
+y0cord <- centers[,2]
+}
+# Sets the grid dimensions and establishes the grid for graphics
+grid.matrix <- matrix(c(1,1,1,4,1,1,1,4,1,1,1,3,1,1,1,3,1,1,1,2),4,5)
+layout(mat=grid.matrix,heights=c(rep(height[2]/3,3),8))
+# Sets graph margins to zero
+par(mar=rep(0,4))
+# Creates plot region
+plot(0,type="n",xlim=width,ylim=height,axes=F,xlab="",ylab="")
+# Draws the ToxPI
+for(i in 1:n){
+x1cord <- as.vector(NA)
+y1cord <- as.vector(NA)
+for(j in 1:ncol(input.df)){
+theta <- seq(angles[j],angles[j+1],length.out=360/(2*pi/(angles[j+1]-angles[j])))
+x1cord <- c(x1cord,x0cord[i],zp[i,j]*cos(theta)+x0cord[i],NA)
+y1cord <- c(y1cord,y0cord[i],zp[i,j]*sin(theta)+y0cord[i],NA)
+}
+polygon(x=x1cord,y=y1cord,col=color,lty=border)
+}
+# Sets label coordinates and draws labels for non-refchem
+lab.xcord <- x0cord[which(zp$refchem==FALSE)]
+lab.ycord <- y0cord[which(zp$refchem==FALSE)]-lab.offset
+if(length(lab.xcord)>0){
+text(x=lab.xcord,y=lab.ycord,labels=paste(zp$casn[which(zp$refchem==FALSE)]," (",round(zp$score[which(zp$refchem==FALSE)],3),")"),pos=1,cex=1)
+}
+# Set label coordinates and draw labels for refchem
+lab.xcord <- x0cord[which(zp$refchem==TRUE)]
+lab.ycord <- y0cord[which(zp$refchem==TRUE)]-lab.offset
+if(length(lab.xcord)>0){
+text(x=lab.xcord,y=lab.ycord,labels=paste(zp$casn[which(zp$refchem==TRUE)]," (",round(zp$score[which(zp$refchem==TRUE)],3),")"),pos=1,cex=1,font=2,col="dodgerblue")
+}
+# Assigns location for legend
+par(mar=c(5,0,0,5),pty="s")
+plot(0,type="n",xlim=c(0,5),ylim=c(0,5),axes=F,xlab="",ylab="")
+key.cord <- c(2.5,2.5)
+# Draws legend ToxPI
+key.slice <- key.slice
+key.x <- as.vector(NA)
+key.y <- as.vector(NA)
+for(j in 1:ncol(input.df)){
+theta <- seq(angles[j],angles[j+1],length.out=360/(2*pi/(angles[j+1]-angles[j])))
+key.x <- c(key.x,key.cord[1L],key.slice*cos(theta)+key.cord[1L],NA)
+key.y <- c(key.y,key.cord[2L],key.slice*sin(theta)+key.cord[2L],NA)
+}
+polygon(x=key.x,y=key.y,col=color,lty=border)
+# Annotates legend
+key.lab <- key.slice + 0.05
+key.lab.angles <- rep(0,ncol(input.df))
+for(i in 1L:ncol(input.df)){
+key.lab.angles[i] <- angles[i] + (angles[i+1L]-angles[i])/2
+}
+for(i in 1L:ncol(input.df)){
+key.lab.x <- key.cord[1] + key.lab*cos(key.lab.angles[i])
+key.lab.y <- key.cord[2] + key.lab*sin(key.lab.angles[i])
+key.adj <- c(
+if(key.lab.angles[i]>=pi/2 && key.lab.angles[i]<=3*pi/2){
+1
+} else 0,
+if(key.lab.angles[i]<=pi){
+0
+} else 1
+)
+if(is.null(key.lab.cex)){
+key.lab.cex <- lab.cex
+if(key.adj[1]==1){
+while(key.lab.x - strwidth(colnames(input.df)[i],cex=key.lab.cex)<0){
+key.lab.cex <- key.lab.cex - 0.1
+}
+} else {
+while(key.lab.x + strwidth(colnames(input.df)[i],cex=key.lab.cex)>5){
+key.lab.cex <- key.lab.cex - 0.1
+}
+}
+}
+text(x=key.lab.x,y=key.lab.y,adj=key.adj,cex=key.lab.cex,
+labels=switch(colnames(input.df)[i],
+Feeding_Behavior_DC = "Feeding Behavior (Rodent)",
+Feeding_Behavior_SS = "Feeding Behavior (C. elegans)",
+Adipocyte_Differentiation = "Adipocyte Differentiation",
+Islet_Cell_MW = "Islet Cell (MW)",
+Islet_Cell_AH = "Islet Cell (AH)",
+Insulin_Sensitivity = "Insulin Sensitivity",
+colnames(input.df)[i]))
+}
+# Closes graphics devices
+graphics.off()
+}
+# Runs the function
+toxpi_hc_target(tox_data)
+?min
+# Loads the required RData tables
+load("C:\\Users\\SQL-server\\Documents\\R\\win-library\\3.4\\Dream.TK\\data\\ac50.data.RData")
+load("C:/Users/SQL-server/Documents/Burton/Datas/icl_clint.RData")
+# Loads the required RData tables
+load("C:\\Users\\SQL-server\\Documents\\R\\win-library\\3.4\\Dream.TK\\data\\ac50.data.RData")
+load("C:\\Users\\SQL-server\\Documents\\R\\win-library\\3.4\\Dream.TK\\data\\assay.data.RData")
+load("C:\\Users\\SQL-server\\Documents\\R\\win-library\\3.4\\Dream.TK\\data\\chemical.data.RData")
+# Returns a random list of CAS Numbers if a list is not supplied
+if (is.null(casn_list)){
+casn_list = icl$casn
+}
+casn_list=icl$casn
+# Retrieves chemical data for relevant CAS numbers
+chem_data = chemical.data[chemical.data$casn %in% casn_list,]
+# Extracts median values for chemicals
+for (i in casn_list) {
+# Retrieves chemical data for a single chemical
+i_data = ac50.data[ac50.data$casn==i,]
+# Calculates median values for top asymptote and Ac50
+chem_data$min_top_asymptote[chem_data$casn==i] <- min(i_data$ac_top)
+chem_data$min_ac50[chem_data$casn==i] <- min_ac50 <- min(i_data$ac50[i_data$ac50>0])
+# Finds the AEID associated to the median Ac50
+target_aeid = i_data$aeid[which.min(abs(i_data$ac50 - min_ac50))]
+# Finds the targets of the associated AEID
+chem_data$min_target_family_from_ac50[chem_data$casn==i] <- assay.data$intended_target_family[assay.data$aeid==target_aeid]
+chem_data$min_biological_target_from_ac50[chem_data$casn==i] <- assay.data$biological_process_target[assay.data$aeid==target_aeid]
+}
+View(chem_data)
+read.csv(C:\\Users\\SQL-server\\Documents\\Burton\\Datas\\icl_chemicals.csv)
+read.csv("C:\\Users\\SQL-server\\Documents\\Burton\\Datas\\icl_chemicals.csv")
+icl_chem=read.csv("C:\\Users\\SQL-server\\Documents\\Burton\\Datas\\icl_chemicals.csv")
+View(icl_chem)
+icl_chem[,4]=chem_data$min_ac50
+View(icl_chem)
+for (i in icl_chem$casn){
+icl_chem[icl_chem$casn==i,4]=chem_data$min_ac50[chem_data$casn==i]
+}
+View(icl_chem)
+View(chem_data)
+colnames(icl_chem)[4]="min ac50"
+View(icl_chem)
+save(icl_chem, file="C:\\Users\\SQL-server\\Documents\\Burton\\Datas\\icl_chem.csv")
+write.csv(icl_chem, file="C:\\Users\\SQL-server\\Documents\\Burton\\Datas\\icl_chem.csv")
+?csv_write()
+?csv.write()
+?write.csv()
+load("~/Gabriel/DREAMTK-master/data/DreamTKv0.7.RData")
+View(ac50_data)
+View(assay_data)
+View(assay_data)
+View(ac50_data)
+View(ac50_data)
+?merge()
+test <- merge(ac50_data, ac50_data)
+View(test)
+View(test)
+load("~/Gabriel/DREAMTK-master/data/DreamTKv0.7.RData")
+tempFrame <- read.csv("queryresults3.csv", header = FALSE, col_names = c("casn","aeid","hitc"))
+tempFrame <- read.csv("queryresults3.csv", header = FALSE, sep = ",", col_names = c("casn","aeid","hitc"))
+tempFrame <- read.csv("queryresults3.csv", header = FALSE, sep = ",")
+tempFrame <- read.csv("queryresults3.csv", header = FALSE, sep = ",")
+tempFrame <- read.csv("queryresults3.csv", header = FALSE, sep = ",")
+library(readr)
+queryresults3 <- read_csv("~/Gabriel/TempDataCopies/queryresults3.csv")
+View(queryresults3)
+?merge()
+tempframe <- merge(queryresults3,ac50_data, by=c("casn","aeid"))
+View(tempframe)
+View(tempframe)
+View(ac50_data)
+View(ac50_data)
+View(tempframe)
+View(tempframe)
+View(tempframe)
+library(readr)
+queryresults3 <- read_csv("~/Gabriel/TempDataCopies/queryresults3.csv")
+View(queryresults3)
+queryresults3 <- read_csv("~/Gabriel/TempDataCopies/queryresults3.csv", col_names = c("casn","aeid","hitc"))
+View(queryresults3)
+View(queryresults3)
+tempframe <- merge(queryresults3,ac50_data, by=c("casn","aeid"))
+ac50_data <- merge(queryresults3,ac50_data, by=c("casn","aeid"))
+View(assay_data)
+load("~/Gabriel/DREAMTK-master/data/DreamTKv0.7.RData")
+ac50_data <- merge(queryresults3,ac50_data, by=c("casn","aeid"))
+View(queryresults3)
+View(ac50_data)
+View(pka_data)
+?save()
+save(ac50_data,assay_data,chemical_data,kow_data,model_3css_data,physiology_data,pka_data, file = "DreamTKv0.7.RData")
+load("~/R/DreamTKv0.7.RData")
+shiny::runApp('~/Gabriel/DREAMTK-master')
+shiny::runApp('~/Gabriel/DREAMTK-master')
+shiny::runApp('~/Gabriel/DREAMTK-master')
+shiny::runApp('~/Gabriel/DREAMTK-master')
+shiny::runApp('~/Gabriel/DREAMTK-master')
+runApp('~/Gabriel/DREAMTK-master')
+runApp('~/Gabriel/DREAMTK-master')
+runApp('~/Gabriel/DREAMTK-master')
+runApp('~/Gabriel/DREAMTK-master')
+runApp('~/Gabriel/DREAMTK-master')
+runApp('~/Gabriel/DREAMTK-master')
+runApp('~/Gabriel/DREAMTK-master')
+View(createScalarTopUI)
+View(Class.Analysis.BasicStats)
+runApp()
+runApp('~/Gabriel/DREAMTK-master')
+runApp('~/Gabriel/DREAMTK-master')
+runApp('~/Gabriel/DREAMTK-master')
+?unlockbinding()
+?unlockbinding
+?unlockBinding
+?rm
+?unlockBinding
+runApp('~/Gabriel/DREAMTK-master')
+runApp('~/Gabriel/DREAMTK-master')
+runApp('~/Gabriel/DREAMTK-master')
