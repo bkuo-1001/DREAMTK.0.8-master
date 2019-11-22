@@ -40,10 +40,16 @@ Class.Analysis.BERAnalysis <- R6Class("Class.Analysis.BERAnalysis",
 	#computes the Agregated table for BER analysis
     computerMeanTableBER = function(){
       if (self$BERData$calcBERStatsDataExists() && self$basicData$basicStatsDataExists()) {
-		private$tblMeanBER <- tribble(~casn,~name,~average_of_oral_consumer_products_exposure, ~minAC50, ~minOED,
-		                              ~min_oed_over_oral_consumer_products_exposure, ~mean_oed_over_oral_consumer_products_exposure);
+        #private$tblMeanBER <- tribble(~casn,~name,~average_of_oral_consumer_products_exposure, ~minAC50, ~minOED,
+        #                              ~min_oed_over_oral_consumer_products_exposure, ~mean_oed_over_oral_consumer_products_exposure);
+        
+        #November 2019
+        private$tblMeanBER <- tribble(~casn,~name,~average_of_oral_consumer_products_exposure, ~minAC50, ~minOED,
+		                                  ~min_oed_over_oral_consumer_products_exposure, ~mean_oed_over_oral_consumer_products_exposure,
+		                                  ~ac50_95th_percentile_value, ~oed_95th_percentile_value);
+        
 		#getting our private data
-        calc_BER_stat_tbl <- self$BERData$getCalcBERStatsTable();
+    calc_BER_stat_tbl <- self$BERData$getCalcBERStatsTable();
 		chemical_casn_list <- unique(calc_BER_stat_tbl[["casn"]]);
 		Ac50_stat_tbl <- self$basicData$getBasicStatsTable();
 		Ac50_stat_tbl<- filter(Ac50_stat_tbl, above_cutoff == "Y", ac50 >= -2, ac50 <= 10000, cytotoxicity_um > 0.01) %>% drop_na(ac50);
@@ -60,20 +66,36 @@ Class.Analysis.BERAnalysis <- R6Class("Class.Analysis.BERAnalysis",
 			avg_oed <- mean(ac50_tbl$oed);
 			min_oed <- min(ac50_tbl$oed);
 			
+			# November 2019
+			oed_95th_percentile <- quantile(ac50_tbl$oed, 0.95);
+			ac50_95th_percentile <- quantile(ac50_tbl$ac50, 0.95);
+			
 			
 			theorical_95th_percentile <- quantile(oral_ber,0.95);
 			closest_to_95th <- absolute.min(oral_ber - theorical_95th_percentile) + theorical_95th_percentile ; #gets the closest value to the 95th percentile.
+		
 			
+			#private$tblMeanBER <- add_row(private$tblMeanBER, casn = chemical_casn, 
+			#                              name = as.character(filter(calc_BER_stat_tbl, casn == chemical_casn) %>% select(name) %>% distinct(name)),
+			#                              average_of_oral_consumer_products_exposure = signif(avg_mean, digits = 5), minAC50 = min_ac50, minOED = min_oed,
+			#                              min_oed_over_oral_consumer_products_exposure = signif(ifelse(is.nan(min_oed) || is.infinite(min_oed),0,min_ac50 / closest_to_95th), digits = 5),
+			#                              mean_oed_over_oral_consumer_products_exposure = signif(ifelse(is.nan(avg_oed) || is.infinite(avg_oed),0,avg_ac50 / closest_to_95th), digits = 5));	
 			
+			#November 2019
 			private$tblMeanBER <- add_row(private$tblMeanBER, casn = chemical_casn, 
 						name = as.character(filter(calc_BER_stat_tbl, casn == chemical_casn) %>% select(name) %>% distinct(name)),
 						average_of_oral_consumer_products_exposure = signif(avg_mean, digits = 5), minAC50 = min_ac50, minOED = min_oed,
 						min_oed_over_oral_consumer_products_exposure = signif(ifelse(is.nan(min_oed) || is.infinite(min_oed),0,min_ac50 / closest_to_95th), digits = 5),
-						mean_oed_over_oral_consumer_products_exposure = signif(ifelse(is.nan(avg_oed) || is.infinite(avg_oed),0,avg_ac50 / closest_to_95th), digits = 5));
+						mean_oed_over_oral_consumer_products_exposure = signif(ifelse(is.nan(avg_oed) || is.infinite(avg_oed),0,avg_ac50 / closest_to_95th), digits = 5),
+						ac50_95th_percentile_value = signif(ac50_95th_percentile, digits = 5), 
+						oed_95th_percentile_value = signif(oed_95th_percentile, digits = 5));
 				
 			
 		}
-		private$tblMeanBER <- mutate(private$tblMeanBER, ac50Rank = rank(private$tblMeanBER$minAC50), oedRank = rank(private$tblMeanBER$minOED));
+		#private$tblMeanBER <- mutate(private$tblMeanBER, ac50Rank = rank(private$tblMeanBER$minAC50), oedRank = rank(private$tblMeanBER$minOED));
+		
+		# November 2019
+		private$tblMeanBER <- mutate(private$tblMeanBER, ac50Rank = rank(private$tblMeanBER$minAC50), oedRank = rank(private$tblMeanBER$minOED), ac50_95th_rank = rank(private$tblMeanBER$ac50_95th_percentile_value), oed_95th_rank = rank(private$tblMeanBER$oed_95th_percentile_value));
 		
 		
 		invisible(private$tblMeanBER);
