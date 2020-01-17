@@ -17,4 +17,4 @@ source("./app/app_ui.R");
 source("./app/app_server.R");
 
 # Start app ---------------------------------------------------------------
-app <- shinyApp(ui = ui, server = server);
+app <- shinyApp(ui = ui, server = server)

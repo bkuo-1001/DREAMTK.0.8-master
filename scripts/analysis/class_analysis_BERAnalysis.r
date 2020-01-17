@@ -16,6 +16,7 @@ Class.Analysis.BERAnalysis <- R6Class("Class.Analysis.BERAnalysis",
 	pltBER = NULL,
 	tblBER = NULL,
 	tblMeanBER = NULL,
+	tblOEDvsAC50 = NULL,
 	pltBERvsAc50 = NULL,
 	pltOEDvsAc50 = NULL
 ),
@@ -38,7 +39,7 @@ Class.Analysis.BERAnalysis <- R6Class("Class.Analysis.BERAnalysis",
 	#BER Analysis Region
 	
 	#computes the Agregated table for BER analysis
-    computerMeanTableBER = function(){
+    computeMeanTableBER = function(){
       if (self$BERData$calcBERStatsDataExists() && self$basicData$basicStatsDataExists()) {
         #private$tblMeanBER <- tribble(~casn,~name,~average_of_oral_consumer_products_exposure, ~minAC50, ~minOED,
         #                              ~min_oed_over_oral_consumer_products_exposure, ~mean_oed_over_oral_consumer_products_exposure);
@@ -102,6 +103,45 @@ Class.Analysis.BERAnalysis <- R6Class("Class.Analysis.BERAnalysis",
      }   
     },
 	
+	
+	# compute the OED vs AC50 table to be displayed after the plot
+	# Added January 17, 2020
+	computeMeanTableOEDvsAC50 = function( label_by = "casn"){
+	  if (self$BERData$calcBERStatsDataExists() && self$basicData$basicStatsDataExists()) {
+	    basic_data <- self$basicData$getBasicStatsTable();
+	    basic_data <- filter(basic_data, above_cutoff == "Y", ac50 >= -2, ac50 <= 10000, cytotoxicity_um > 0.01) %>% drop_na(ac50);
+	    
+	    chemical_casn_list <- unique(basic_data$casn);
+	    private$tblOEDvsAC50 <- tribble(~casn, ~name, ~minAC50, ~minOED, ~meanAC50, ~meanOED, ~ac50_95th_percentile_value, ~oed_95th_percentile_value);
+	    
+	    for(chemical_casn in chemical_casn_list){
+	      
+	      chemical_ac50 <- filter(basic_data, casn == chemical_casn) %>% select(ac50);
+	      min_ac50 <- min(chemical_ac50$ac50);
+	      avg_ac50 <- mean(chemical_ac50$ac50);
+	      ac50_95th_percentile <- quantile(chemical_ac50$ac50, 0.95);
+	      
+	      chemical_oed <- filter(basic_data, casn == chemical_casn) %>% select(oed);
+	      min_oed <- min(chemical_oed$oed);
+	      avg_oed <- mean(chemical_oed$oed);
+	      oed_95th_percentile <- quantile(chemical_oed$oed, 0.95);
+	      
+	      private$tblOEDvsAC50 <- add_row (private$tblOEDvsAC50, casn = chemical_casn, 
+	                                       name = as.character(filter(basic_data, casn == chemical_casn) %>% select(name) %>% distinct(name)),
+	                                       minAC50 = signif(min_ac50, digits = 5), minOED = signif(min_oed, digits = 5), 
+	                                       meanAC50 = signif(avg_ac50, digits = 5), meanOED = signif(avg_oed, digits = 5),
+	                                       ac50_95th_percentile_value = signif(ac50_95th_percentile, digits = 5), 
+	                                       oed_95th_percentile_value = signif(oed_95th_percentile, digits = 5)
+	      );
+	    }
+
+	    private$tblOEDvsAC50 <- mutate(private$tblOEDvsAC50, ac50Rank = rank(private$tblOEDvsAC50$minAC50), oedRank = rank(private$tblOEDvsAC50$minOED), ac50_95th_rank = rank(private$tblOEDvsAC50$ac50_95th_percentile_value), oed_95th_rank = rank(private$tblOEDvsAC50$oed_95th_percentile_value));
+	    
+	    invisible(private$tblOEDvsAc50);
+	  }
+	},
+	
+	# Consumer Products Exposure VS In Vitro Tox Equivalent Dose
 	# plots the box chart comparing the values of the oral exposure vs the AC50 of chemicals
 	# October, 2019: Convert horizontal Box Plot to Vertical to accomodate different monitor styles. Plot now sorte by OED.
 	plotBERvsAc50 = function( label_by = "casn"){
@@ -148,7 +188,8 @@ Class.Analysis.BERAnalysis <- R6Class("Class.Analysis.BERAnalysis",
 	  }   
 	},
 
-	#plots the box chart comparing the values of the oral exposure vs the AC50 of chemicals
+	# In Vitro Tox Concentrations vs Equivalent Doses
+	# plots the box chart comparing the values of the oral exposure vs the AC50 of chemicals
 	# October, 2019: Convert horizontal Box Plot to Vertical to accomodate different monitor styles. Plot now sorte by AC50.
 	plotOEDvsAc50 = function( label_by = "casn"){
 	  if (self$BERData$calcBERStatsDataExists() && self$basicData$basicStatsDataExists()) {
@@ -161,7 +202,7 @@ Class.Analysis.BERAnalysis <- R6Class("Class.Analysis.BERAnalysis",
 	    sorted_name <- sorted_basic_data$name;
 	    sorted_casn <- sorted_basic_data$casn;
 	    sorted_ac50 <- sorted_basic_data$ac50;
-	    
+
 	    if(label_by == "casn"){
 	      private$pltOEDvsAc50 <- plot_ly() %>%
 	        #add_trace(data = basic_data, x = ~casn, y = ~signif(10^ac50, digits = 5), type = 'box', name = 'AC50') %>% # horizontal plot
@@ -258,6 +299,9 @@ Class.Analysis.BERAnalysis <- R6Class("Class.Analysis.BERAnalysis",
 	},
 	getBERplot = function(){
 		return (private$pltBER);
+	},
+	getOEDvsAC50Table = function(){
+	  return (private$tblOEDvsAC50);
 	}
  
 	)

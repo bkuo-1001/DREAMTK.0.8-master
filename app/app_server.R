@@ -1270,8 +1270,9 @@ server <- function( input, output, session ){
 				 
 				 
 				BERAnalysis$BERData$computeBER();
-                BERAnalysis$computerMeanTableBER();  
-				
+                BERAnalysis$computeMeanTableBER();
+				        BERAnalysis$computeMeanTableOEDvsAC50(label_by = input$radio_listtype);
+
                 progress$inc(1/n, detail = "Plotting BER results.");
 				BERAnalysis$plotBERvsAc50(label_by = input$radio_listtype);
 				BERAnalysis$plotOEDvsAc50(label_by = input$radio_listtype);
