@@ -380,11 +380,12 @@ Class.Analysis.BasicAnalysis <- R6Class("Class.Analysis.BasicAnalysis",
       for (chemical_casn in chemical_casn_list){
         
         target_family_count_tbl <- filter(basic_table, casn == chemical_casn, above_cutoff == "Y") %>% 
-          select(casn, name, intended_target_family) %>% 
+          select(casn, name, intended_target_family) %>%
           drop_na(intended_target_family);
-        target_family_counts <- count(target_family_count_tbl, intended_target_family); #colnames: intended_target_family, n
-        
+        #YANIC
+        target_family_counts <- plyr::count(target_family_count_tbl, vars = "intended_target_family"); #colnames: intended_target_family, n
         target_family_ac_tbl <- tribble(~intended_target_family, ~avg_ac50);
+
 		tmp = drop_na(target_family_counts);
 		target_family_counts = tmp;
 		
@@ -429,7 +430,6 @@ Class.Analysis.BasicAnalysis <- R6Class("Class.Analysis.BasicAnalysis",
 			self$basicData$addHitlessChemInfo(chemical);
 		}
       }
-
       return ( private$target_family_ac_list );
     },
     
@@ -549,9 +549,7 @@ Class.Analysis.BasicAnalysis <- R6Class("Class.Analysis.BasicAnalysis",
     
     #plots pie chart of target family counts
     plotToxPI = function( label_by = "name", grouped = FALSE){
-      
       if ( (!grouped & self$toxPIDataExists()) | ( grouped & self$toxPIGroupDataExists()) ) {
-        
         #plotly does not have a suitable polar plotting function, so slower and non-interactive ggplot2 is used
         #toxpi representation of data uses a box plot that is converted to polar coordinates
         
@@ -594,16 +592,17 @@ Class.Analysis.BasicAnalysis <- R6Class("Class.Analysis.BasicAnalysis",
           }
 
           #first, need to create the boxes, with left and right coordinates for each
+          print("freq is here")
           left <- 0;
-          right <- plotdata$n[[1]];
+          right <- ifelse(grouped, plotdata$n[[1]], plotdata$freq[[1]]);
           center <- (left+right)/2;
-		  if (length(plotdata$n) >= 2){ #checking if there's more than 1 intended_target_family
-			  for ( i in 2:length(plotdata$n) ){
-				
-				left <- c(left, left[[i-1]]+plotdata$n[[i-1]]);
-				right <- c(right, right[[i-1]]+plotdata$n[[i]]);
-				center <- c(center, (left[[i]]+right[[i]])/2);
+		  if ((grouped && length(plotdata$n) >= 2) || (!grouped && length(plotdata$freq) >= 2)){ #checking if there's more than 1 intended_target_family
+			  for ( i in 2:ifelse(grouped, length(plotdata$n), length(plotdata$freq))) {
+				left <- c(left, (left[[(i-1)]]+ifelse(grouped, plotdata$n[[(i-1)]], plotdata$freq[[(i-1)]])));
+				right <- c(right, (right[[(i-1)]]+ifelse(grouped, plotdata$n[[i]], plotdata$freq[[i]])));
+				center <- c(center, ((left[[i]]+right[[i]])/2));
 			  }
+		    print("freq has passed")
           }
           #also key some colors for boxes and corresponding labels
           colorpalette <- rainbow(length(plotdata$intended_target_family), end = 0.7, s = 3/4, v = 3/4);
@@ -667,7 +666,6 @@ Class.Analysis.BasicAnalysis <- R6Class("Class.Analysis.BasicAnalysis",
         }
         
       }
-      
       if ( grouped ){
         return (private$pltpi_group);
       } else {

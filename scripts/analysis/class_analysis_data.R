@@ -104,7 +104,7 @@ Class.Analysis.Data <- R6Class("Class.Analysis.Data",
       
       target_family_count_tbl <- select(private$basic_stat_tbl, casn, name, intended_target_family) %>% drop_na(intended_target_family);
       
-      target_family_counts <- count(target_family_count_tbl, intended_target_family); #colnames: intended_target_family, n
+      target_family_counts <- plyr::count(target_family_count_tbl, vars="intended_target_family"); #colnames: intended_target_family, n
       
       private$target_family_counts <- target_family_counts;
       
@@ -203,6 +203,7 @@ Class.Analysis.Data <- R6Class("Class.Analysis.Data",
       }
     },
     
+	  #HERE!?!?
     targetFamilyCountsExist = function (){
       if (is.null(private$target_family_counts) || length(private$target_family_counts$n) <= 0){
         return (FALSE);
