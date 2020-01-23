@@ -153,9 +153,38 @@ Class.Analysis.BERAnalysis <- R6Class("Class.Analysis.BERAnalysis",
 	    basic_data <- self$basicData$getBasicStatsTable();
 	    basic_data <- filter(basic_data, above_cutoff == "Y", ac50 >= -2, ac50 <= 10000, cytotoxicity_um > 0.01) %>% drop_na(ac50);
 	    
-	    # October, 2019: sort the basic_data dataframe by OED and create a new sorted_basic_data dataframe
+	    # January 21, 2020
+	    # Added to sort the data by 25th percentile
+	    # Compute 25th percentile & create a new table for sorting
+	    tbl_basic_data <- data.frame(casn=as.character(), name=as.character(), ac50=as.numeric(), oed=as.numeric(), oed_25th=as.numeric(), stringsAsFactors = FALSE)
+	    
+	    chemical_casn_list <- unique(basic_data$casn);
+	    
+	    for(chemical_casn in chemical_casn_list){
+	      
+	      chemical_name <- filter(basic_data, casn == chemical_casn) %>% select(name);
+	      chemical_ac50 <- filter(basic_data, casn == chemical_casn) %>% select(ac50);
+	      chemical_oed <- filter(basic_data, casn == chemical_casn) %>% select(oed);
+	      
+	      oed_25th_percentile <- 10^quantile(chemical_oed$oed)[2];
+	      
+	      numDataRows <- nrow(chemical_name);
+	      numLine <- 1
+	      
+	      while (numLine <= numDataRows) {
+	        chemName <- chemical_name$name[numLine];
+	        chemAC50 <- chemical_ac50$ac50[numLine];
+	        chemOED <- chemical_oed$oed[numLine];
+	        tbl_basic_data <- rbind (tbl_basic_data, data.frame(casn=chemical_casn, name=chemName, ac50=chemAC50, oed=chemOED, oed_25th=oed_25th_percentile))
+	        
+	        numLine <- numLine + 1
+	      }
+	    }
+	    
+	    
+	    # October, 2019: sort the basic_data dataframe by OED 25th Percentile and create a new sorted_basic_data dataframe
 	    # the newly sorted casn and name columns will be used plot the box plots
-	    sorted_basic_data <- basic_data[order(as.double(basic_data$oed), decreasing = TRUE),];
+	    sorted_basic_data <- tbl_basic_data[order(as.double(tbl_basic_data$oed_25th), decreasing = TRUE),];
 	    sorted_casn <- sorted_basic_data$casn;
 	    sorted_name <- sorted_basic_data$name;
 	    
@@ -192,13 +221,10 @@ Class.Analysis.BERAnalysis <- R6Class("Class.Analysis.BERAnalysis",
 	# plots the box chart comparing the values of the oral exposure vs the AC50 of chemicals
 	# October, 2019: Convert horizontal Box Plot to Vertical to accomodate different monitor styles. Plot now sorte by AC50.
 	plotOEDvsAc50 = function( label_by = "casn"){
-	  #tbl_basic_data <- NULL
 	  
 	  if (self$BERData$calcBERStatsDataExists() && self$basicData$basicStatsDataExists()) {
 	    basic_data <- self$basicData$getBasicStatsTable();
 	    basic_data <- filter(basic_data, above_cutoff == "Y", ac50 >= -2, ac50 <= 10000, cytotoxicity_um > 0.01) %>% drop_na(ac50);
-	    
-	    #basic_data[,"ac50_25th"] <- NA
 	    
 	    # January 21, 2020
 	    # Added to sort the data by 25th percentile
@@ -213,12 +239,7 @@ Class.Analysis.BERAnalysis <- R6Class("Class.Analysis.BERAnalysis",
 	      chemical_ac50 <- filter(basic_data, casn == chemical_casn) %>% select(ac50);
 	      chemical_oed <- filter(basic_data, casn == chemical_casn) %>% select(oed);
 	      
-	      if (nrow(chemical_ac50 > 2)) {
-	        ac50_25th_percentile <- quantile(chemical_ac50$ac50, 0.25);
-	      }
-	      else {
-	        ac50_25th_percentile <- min(chemical_ac50$ac50)
-	      }
+	      ac50_25th_percentile <- 10^quantile(chemical_ac50$ac50)[2];
 	      
 	      numDataRows <- nrow(chemical_name);
 	      numLine <- 1
@@ -227,15 +248,10 @@ Class.Analysis.BERAnalysis <- R6Class("Class.Analysis.BERAnalysis",
 	        chemName <- chemical_name$name[numLine];
 	        chemAC50 <- chemical_ac50$ac50[numLine];
 	        chemOED <- chemical_oed$oed[numLine];
-	        
-	        print (paste(chemName, chemAC50, chemOED, ac50_25th_percentile, sep=", "))
-	        
 	        tbl_basic_data <- rbind (tbl_basic_data, data.frame(casn=chemical_casn, name=chemName, ac50=chemAC50, oed=chemOED, ac50_25th=ac50_25th_percentile))
 	        
 	        numLine <- numLine + 1
 	      }
-	      
-	      
 	    }
 	    
 	    
@@ -243,7 +259,7 @@ Class.Analysis.BERAnalysis <- R6Class("Class.Analysis.BERAnalysis",
 	    # the newly sorted casn and name columns will be used plot the box plots
 	    #sorted_basic_data <- basic_data[order(as.double(quantile(basic_data$ac50, 0.25)), decreasing = TRUE),];
 	    #sorted_basic_data <- basic_data[order(as.double(basic_data$ac50), decreasing = TRUE),];
-	    sorted_basic_data <- basic_data[order(as.double(tbl_basic_data$ac50_25th), decreasing = TRUE),];
+	    sorted_basic_data <- tbl_basic_data[order(as.double(tbl_basic_data$ac50_25th), decreasing = TRUE),];
 	    sorted_name <- sorted_basic_data$name;
 	    sorted_casn <- sorted_basic_data$casn;
 	    sorted_ac50 <- sorted_basic_data$ac50;
