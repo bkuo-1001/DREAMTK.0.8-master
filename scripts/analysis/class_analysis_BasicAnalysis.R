@@ -77,7 +77,7 @@ Class.Analysis.BasicAnalysis <- R6Class("Class.Analysis.BasicAnalysis",
 		#getting our private data
         target_family_counts_local <- self$basicData$getTargetFamilyCountsTable() %>% arrange(intended_target_family);
 		
-        private$plttfc <- plot_ly(target_family_counts_local, labels = ~intended_target_family, values = ~n,
+        private$plttfc <- plot_ly(target_family_counts_local, labels = ~intended_target_family, values = ~freq,
                                   type = "pie",
                                   hole = 0.5,
                                   pull = 0,
@@ -89,7 +89,7 @@ Class.Analysis.BasicAnalysis <- R6Class("Class.Analysis.BasicAnalysis",
                                   outsidetextfont = list(size = 14, color = "#000000"),
                                   hoverinfo = 'text',
                                   text = ~paste("</br> Target family: ", intended_target_family,
-                                                "</br> Count: ", n),
+                                                "</br> Count: ", freq),
                                   marker = list(colors = rainbow(length(target_family_counts_local$n), s = 1/2, v = 3/4),
                                                 line = list(color = '#FFFFFF', width = 1)),
                                   showlegend = FALSE) %>%
@@ -494,7 +494,7 @@ Class.Analysis.BasicAnalysis <- R6Class("Class.Analysis.BasicAnalysis",
       all_chem_tfac_table <- select(basic_table, casn, name, intended_target_family, ac50, above_cutoff) %>% filter(above_cutoff == "Y");
       all_chem_tfac_table$ac50 <- 10^(all_chem_tfac_table$ac50);
       all_chem_tfac_table <- group_by(all_chem_tfac_table, casn, intended_target_family) %>% 
-        mutate(avg_ac50 = mean(ac50, na.rm=TRUE)) %>% ungroup() %>% 
+        dplyr::summarize(avg_ac50 = mean(ac50, na.rm=TRUE)) %>% ungroup() %>% 
         distinct(casn, name, intended_target_family, avg_ac50) # %>% drop_na(all_chem_tfac_table,intended_target_family);
 	  tmp = drop_na(all_chem_tfac_table);
 	  all_chem_tfac_table = tmp;
@@ -592,7 +592,6 @@ Class.Analysis.BasicAnalysis <- R6Class("Class.Analysis.BasicAnalysis",
           }
 
           #first, need to create the boxes, with left and right coordinates for each
-          print("freq is here")
           left <- 0;
           right <- ifelse(grouped, plotdata$n[[1]], plotdata$freq[[1]]);
           center <- (left+right)/2;
@@ -602,7 +601,6 @@ Class.Analysis.BasicAnalysis <- R6Class("Class.Analysis.BasicAnalysis",
 				right <- c(right, (right[[(i-1)]]+ifelse(grouped, plotdata$n[[i]], plotdata$freq[[i]])));
 				center <- c(center, ((left[[i]]+right[[i]])/2));
 			  }
-		    print("freq has passed")
           }
           #also key some colors for boxes and corresponding labels
           colorpalette <- rainbow(length(plotdata$intended_target_family), end = 0.7, s = 3/4, v = 3/4);

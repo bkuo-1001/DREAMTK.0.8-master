@@ -24,7 +24,9 @@ Class.Analysis.Data <- R6Class("Class.Analysis.Data",
     basic_stat_tbl = NULL, #analysis table,
     target_family_counts = NULL, #function for data filtering,
     target_family_ac_tbl = NULL, #target family counts table,
-    scalar_top_tbl = NULL #target family chem activity table – min, avg values per family,
+    scalar_top_tbl = NULL, #target family chem activity table – min, avg values per family,
+	  gentox_tbl = NULL, #table for GenToxData
+	  bmd_tbl = NULL #table for BMD Data
   ),
   
   #public variables and functions
@@ -156,6 +158,62 @@ Class.Analysis.Data <- R6Class("Class.Analysis.Data",
       invisible ( scalar_top_tbl );
     },
 	
+	#build the GenTox Data Table
+	computeGenToxTable = function(chemicals)
+	{
+	  load("data/GenTox21.RData");
+	  
+	  gentox_tbl <- tribble(~casn, ~compound, ~assay, ~endpoint, ~s9, 
+	                            ~concentration, ~concentration_unit, ~response, ~response_type);
+	  for (chem in chemicals){
+	    if (length(chem$assay_info$aeid)> 0){
+	      chemGenToxData <- gen_tox_data[gen_tox_data$casn == chem$chem_info$casn,] %>%
+	        dplyr::mutate(s9 = ifelse(s9_positive, "+", "-"));
+	      chemGenToxData <- chemGenToxData[, names(chemGenToxData) != "s9_positive"];
+	      if(nrow(chemGenToxData)>0){			
+	        gentox_tbl <- bind_rows(gentox_tbl, chemGenToxData);
+	      }else{
+	        logdebug(paste0("No GenTox information found for ", chem$chem_info$casn));
+	        self$addHitlessChemInfo(chem$chem_info);
+	      }
+	    } else {
+	      logdebug(paste0("No GenTox information found for ", chem$chem_info$casn));
+	      self$addHitlessChemInfo(chem$chem_info);
+	    }
+	    
+	  }
+	  private$gentox_tbl <- gentox_tbl;
+	  invisible (gentox_tbl);
+	},
+	
+	#build the BMD Data Table
+	computeBMDTable = function(chemicals)
+	{
+	  load("data/GenTox21.RData");
+	  
+	  bmd_tbl <- tribble(~casn, ~compound, ~assay, ~endpoint, ~s9, 
+	                        ~bmr, ~bmdl, ~bmd, ~bmdu);
+	  for (chem in chemicals){
+	    if (length(chem$assay_info$aeid)> 0){
+	      chemBMDData <- bmd_data[bmd_data$casn == chem$chem_info$casn,] %>%
+	        dplyr::mutate(s9 = ifelse(s9_positive, "+", "-"));
+	      chemBMDData <- chemBMDData[, names(chemBMDData) != "s9_positive"];
+	      if(nrow(chemBMDData)>0){			
+	        bmd_tbl <- bind_rows(bmd_tbl, chemBMDData);
+	      }else{
+	        logdebug(paste0("No BMD information found for ", chem$chem_info$casn));
+	        self$addHitlessChemInfo(chem$chem_info);
+	      }
+	    } else {
+	      logdebug(paste0("No BMD information found for ", chem$chem_info$casn));
+	      self$addHitlessChemInfo(chem$chem_info);
+	    }
+	    
+	  }
+	  private$bmd_tbl <- bmd_tbl;
+	  invisible (bmd_tbl);
+	},
+	
 	addHitlessChemInfo = function(chem){
 		if(!(chem$casn %in% private$hitless_chem_casn)){
 			private$hitless_chem_name = c(private$hitless_chem_name, chem$name);
@@ -195,6 +253,14 @@ Class.Analysis.Data <- R6Class("Class.Analysis.Data",
       return (private$scalar_top_tbl);
     },
 	
+	  getGenToxTable = function () {
+	    return (private$gentox_tbl);
+	  },
+	
+	  getBMDTable = function () {
+	    return (private$bmd_tbl);
+	  },
+	
     basicStatsDataExists = function (){
       if (is.null(private$basic_stat_tbl) || length(private$basic_stat_tbl$casn) <= 0){
         return (FALSE);
@@ -203,9 +269,8 @@ Class.Analysis.Data <- R6Class("Class.Analysis.Data",
       }
     },
     
-	  #HERE!?!?
     targetFamilyCountsExist = function (){
-      if (is.null(private$target_family_counts) || length(private$target_family_counts$n) <= 0){
+      if (is.null(private$target_family_counts) || length(private$target_family_counts$freq) <= 0){
         return (FALSE);
       } else {
         return (TRUE);
